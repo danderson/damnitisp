@@ -1,0 +1,7 @@
+syntax: regexp
+
+^bin/
+^pkg/
+^goinstall.log$
+\.[568a]$
+/(conncheck)$

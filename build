@@ -1,0 +1,6 @@
+#!/bin/bash
+
+export GOPATH=$(readlink -m `dirname $0`)
+
+find $GOPATH -name '*.go' | xargs gofmt -w
+goinstall conncheck
