@@ -4,4 +4,3 @@ syntax: regexp
 ^pkg/
 ^goinstall.log$
 \.[568a]$
-/(conncheck)$

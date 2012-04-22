@@ -19,7 +19,7 @@ func ResolveAddrs(servers []string) ([]*net.UDPAddr, error) {
 }
 
 type Result struct {
-	UTC, Local    *time.Time
+	UTC, Local    time.Time
 	NumOK, NumBad int
 }
 
@@ -37,7 +37,7 @@ func AttemptOne(server *net.UDPAddr, ch chan bool) {
 		return
 	}
 	defer conn.Close()
-	if err = conn.SetTimeout(2e9); err != nil {
+	if err = conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
 		return
 	}
 
@@ -62,7 +62,7 @@ func Attempt(servers []*net.UDPAddr) Result {
 	for _, server := range servers {
 		go AttemptOne(server, ch)
 	}
-	res := Result{UTC: time.UTC(), Local: time.LocalTime()}
+	res := Result{UTC: time.Now().UTC(), Local: time.Now()}
 	for _ = range servers {
 		if <-ch {
 			res.NumOK++
@@ -103,7 +103,7 @@ func main() {
 			} else {
 				fmt.Printf("UP   %+v\n", now)
 				if last != nil {
-					fmt.Printf("OUTAGE %s %d seconds\n", last.Local, now.Local.Seconds()-last.Local.Seconds())
+					fmt.Printf("OUTAGE %s %d seconds\n", last.Local, now.Local.Unix()-last.Local.Unix())
 				}
 			}
 			last = &now
