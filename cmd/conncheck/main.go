@@ -85,11 +85,11 @@ func main() {
 		"stun1.noc.ams-ix.net:3478"}
 
 	addrs, err := ResolveAddrs(servers)
-	for i := range servers {
-		fmt.Println(servers[i], addrs[i])
-	}
 	if err != nil {
 		fmt.Println(err)
+	}
+	for i := range servers {
+		fmt.Println(servers[i], addrs[i])
 	}
 
 	ticker := time.Tick(4e9)
