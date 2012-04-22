@@ -79,7 +79,7 @@ func main() {
 		"stun.ekiga.net:3478",
 		"stunserver.org:3478",
 		"stun.xten.com:3478",
-		"stun01.sipphone.com:3478",
+		//		"stun01.sipphone.com:3478",
 		"stun.softjoys.com:3478",
 		"stun.voxgratia.org:3478",
 		"stun1.noc.ams-ix.net:3478"}
