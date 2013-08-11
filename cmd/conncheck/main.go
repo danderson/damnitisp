@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"time"
 )
@@ -86,7 +87,7 @@ func main() {
 
 	addrs, err := ResolveAddrs(servers)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Failed to resolve servers: %v", err)
 	}
 	for i := range servers {
 		fmt.Println(servers[i], addrs[i])
