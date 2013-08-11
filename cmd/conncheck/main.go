@@ -127,6 +127,20 @@ func main() {
 	ticker := time.Tick(time.Second * time.Duration(*delaySec))
 	up := true
 	var last *Result = nil
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if last == nil {
+			w.Write([]byte("No results yet."))
+			return
+		}
+		state := "UP"
+		if last.Bad() {
+			state = "DOWN"
+		}
+		ago := time.Now().Sub(last.Local)
+		w.Write([]byte(fmt.Sprintf("Network is %s since %v (%v ago)", state, last.Local, ago)))
+	})
+
 	for {
 		now := Attempt(addrs)
 		numVisible.Set(int64(now.NumOK))
