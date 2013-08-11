@@ -1,10 +1,23 @@
 package main
 
 import (
+	"expvar"
+	"flag"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"time"
+)
+
+var (
+	delaySec        = flag.Int("delaySec", 60, "delay between lookup attempts")
+	printNoChange   = flag.Bool("printNoChange", false, "print when there's no change")
+	listenPort      = flag.Int("port", 0, "port (if any) to export variables using expvar")
+	retryDnsForever = flag.Bool("retryDnsForever", true, "keep retrying DNS until all lookups succeed")
+
+	numServers = expvar.NewInt("numServers")
+	numVisible = expvar.NewInt("numVisible")
 )
 
 func ResolveAddrs(servers []string) ([]*net.UDPAddr, error) {
@@ -75,6 +88,7 @@ func Attempt(servers []*net.UDPAddr) Result {
 }
 
 func main() {
+	flag.Parse()
 	servers := []string{
 		"stun.l.google.com:19302",
 		"stun.ekiga.net:3478",
@@ -84,32 +98,57 @@ func main() {
 		"stun.softjoys.com:3478",
 		"stun.voxgratia.org:3478",
 		"stun1.noc.ams-ix.net:3478"}
+	numServers.Set(int64(len(servers)))
+	if *listenPort > 0 {
+		numVisible.Set(0)
+		go func() {
+			log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *listenPort), nil))
+		}()
+	}
 
-	addrs, err := ResolveAddrs(servers)
-	if err != nil {
-		log.Fatalf("Failed to resolve servers: %v", err)
+	var (
+		addrs []*net.UDPAddr
+		err   error
+	)
+	for len(addrs) == 0 {
+		addrs, err = ResolveAddrs(servers)
+		if err != nil {
+			if *retryDnsForever {
+				log.Printf("Failed to resolve: %s, waiting %d seconds.", err, *delaySec)
+				time.Sleep(time.Second * time.Duration(*delaySec))
+			} else {
+				log.Fatalf("Failed to resolve servers: %v", err)
+			}
+		}
 	}
 	for i := range servers {
 		fmt.Println(servers[i], addrs[i])
 	}
-
-	ticker := time.Tick(4e9)
+	ticker := time.Tick(time.Second * time.Duration(*delaySec))
 	up := true
 	var last *Result = nil
 	for {
 		now := Attempt(addrs)
+		numVisible.Set(int64(now.NumOK))
 		if now.Bad() != up {
 			if now.Bad() {
-				fmt.Printf("DOWN %+v\n", now)
-			} else {
-				fmt.Printf("UP   %+v\n", now)
+				log.Printf("DOWN %d good %d bad", now.NumOK, now.NumBad)
 				if last != nil {
-					fmt.Printf("OUTAGE %s %d seconds\n", last.Local, now.Local.Unix()-last.Local.Unix())
+					outageSec := now.Local.Sub(last.Local) / time.Second
+					log.Printf("Up for %d seconds from %v to %v", outageSec, last.Local, now.Local)
+				}
+			} else {
+				log.Printf("UP %d good %d bad", now.NumOK, now.NumBad)
+				if last != nil {
+					outageSec := now.Local.Sub(last.Local) / time.Second
+					log.Printf("Outage lasted %d seconds from %v to %v", outageSec, last.Local, now.Local)
 				}
 			}
 			last = &now
 		} else {
-			fmt.Printf("NOP  %+v\n", now)
+			if *printNoChange {
+				log.Printf("NOP %d good %d bad", now.NumOK, now.NumBad)
+			}
 		}
 		up = now.Bad()
 		<-ticker
